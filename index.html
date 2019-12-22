@@ -2,62 +2,200 @@
 <html>
 <head>
 <meta charset="UTF-8">
+<script src="./include/jquery-3.4.1.js"></script>
 <style>
+.select_container{
+    border:none;
+    display:inline-block;
+    margin-bottom:.25rem;
+	padding-left:10px;
+	padding-right:10px;
+}
+.selector{
+    color:#333333;
+	font-size:1.625rem;
+    font-family:Helvetica, Arial, sans-serif;
+	
+	z-index:2;
+	
+    border:2px solid #666666;
+}
+.selector:hover{
+	box-shadow:0 2px 6px rgba(0, 0, 0, 0.3);
+}
+#law_title_container{
+	width:85vw;
+	
+	top:15px;
+	left:7.5vw;
+	position:relative;
+	
+    color:#333333;
+	font-size:1.625rem;
+    font-family:Helvetica,Arial,sans-serif;
+	
+	line-height:1.2;
+    margin:0 0 .5rem;
+}
+#container{
+	width:85vw;
+	height:85vh;
+	
+	top:7.5vh;
+	left:7.5vw;
+	position:relative;
+	
+	overflow:hidden;
+	
+	font-family:sans-serif "微軟正黑體";
+}
 </style>
 <script src="https://d3js.org/d3.v4.min.js"></script>
 </head>
 <body>
+<div id="law_title_container"></div>
 <div id="container">
 	<svg id="chart"></svg>
 </div>
 </body>
 <script type="text/javascript">
-	var law_type = [];
-	var svg = d3.select("#chart")
-		.attr("preserveAspectRatio", "xMinYMin meet")
-		.attr("viewBox", "0 0 1280 1024");
+
+	var law_type = ["background checks", "carrying a concealed weapon", "open carry", "castle doctrine", "firearm ban"];
+	var background_type = [];
+	var gun_type = ["handguns", "long guns"];
+	
+	var selected_year;
+	var selected_law_idx;
+	var selected_gun_idx;
 		
 	var width = 960;
 	var height = 500;
-
-	d3.csv("./data/State Firearm Law.csv", function(law_data){
-		
-		// data using state as first key and type of law as second key
-		var law_state = d3.nest()
-			.key(function(d){ return d["State"];})
-			.key(function(d){ return d["Type of Law"];})
-			.entries(law_data);
-		
-		console.log(law_state)
-		
-			
-		var color = d3.scaleLinear()
-			.range(["rgb(213,222,217)", "rgb(69,173,168)",
-					"rgb(84,36,55)", "rgb(217,91,67)"]);
-				  
-		// D3 Projection
-		var projection = d3.geoAlbersUsa()
-			.translate([width/2, height/2])
-			.scale([1000]);   
-
-		var path = d3.geoPath()
-		  .projection(projection);
-
-		// drawing us map
-		d3.json("./data/us-states.json", function(json) {		
-			svg.selectAll("path")
-				.data(json.features)
-				.enter()
-				.append("path")
-				.attr("d", path)
-				.attr("id", function(d){ return d["properties"]["NAME"];})
-				.classed("state", true)
-				.style("stroke", "#fff")
-				.style("stroke-width", "1")
-				.style("fill", "rgb(213,222,217)");
-		});
-	});
 	
+	/* 
+		law_data: a two level dictionary
+			first level key: 
+				name of state
+			second level key:
+				type of law
+			value:
+				law				
+	*/
+	var law_state = {};
+	
+	$(document).ready(function() {
+		selected_year = 2019;
+		selected_law_idx = 0;
+		selected_gun_idx = 0;
+		
+		var svg = d3.select("#chart")
+			.attr("preserveAspectRatio", "xMinYMin meet")
+			.attr("viewBox", "0 0 1280 1024");
+			
+		d3.csv("./data/State Firearm Law.csv", function(law_data){
+			
+			// data using state as first key and type of law as second key
+			var temp_data = d3.nest()
+				.key(function(d){ return d["State"];})
+				.entries(law_data);
+			
+			temp_data.forEach(function(d){
+				var key = d.key;
+				
+				if (!(key in law_state)){
+					law_state[key] = {};
+				}
+				
+				for(var idx in d.values){
+					var type = d.values[idx]["Type of Law"];
+
+					if (type in law_state[key]){
+						law_state[key][type].push(d.values[idx]);
+					}
+					else{
+						law_state[key][type] = [];
+						law_state[key][type].push(d.values[idx]);
+					}
+				}
+			});
+			
+			console.log(law_state);
+			
+			var law_type_of_law = d3.nest()
+				.key(function(d){ return d["Type of Law"];})
+				.entries(law_data);
+			
+			console.log(law_type_of_law)
+				
+			var color = d3.scaleLinear()
+				.range(["rgb(213,222,217)", "rgb(69,173,168)",
+						"rgb(84,36,55)", "rgb(217,91,67)"]);
+					  
+			// D3 Projection
+			var projection = d3.geoAlbersUsa()
+				.translate([width/2, height/2])
+				.scale([1000]);   
+
+			var path = d3.geoPath()
+			  .projection(projection);
+
+			// drawing us map
+			d3.json("./data/us-states.json", function(json) {
+				svg.selectAll("path")
+					.data(json.features)
+					.enter()
+					.append("path")
+					.attr("d", path)
+					.attr("id", function(d){ return d["properties"]["NAME"];})
+					.classed("state", true)
+					.attr("transform", "translate(0, 20)")
+					.style("stroke", "#fff")
+					.style("stroke-width", "1")
+					.style("fill", function(d){
+						var state = this.id;
+						var state_laws;
+
+						
+						return "#fe48f9";
+					});
+			});
+		});
+		
+		$("#law_title_container").html(
+			"<p id='law_title'>"+
+				"states have"+
+				"<span class='select_container'>"+
+					"<select name='law_type_selector' class='selector' id='law_type_selector'>"+
+						"<option value='0' selected>"+
+							"background checks"+
+						"</option>"+
+						"<option value='1'>"+
+							"carrying a concealed weapon"+
+						"</option>"+
+						"<option value='2'>"+
+							"open carry"+
+						"</option>"+
+						"<option value='3'>"+
+							"stand your ground"+
+						"</option>"+
+						"<option value='4'>"+
+							"firearm ban"+
+						"</option>"+
+					"</select>"+
+				"</span>"+
+				"laws on the purchase of"+
+				"<span class='select_container'>"+
+					"<select name='gun_type_selector' class='selector' id='gun_type_selector'>"+
+						"<option value='0' selected>"+
+							"handguns"+
+						"</option>"+
+						"<option value='1'>"+
+							"long guns"+
+						"</option>"+
+					"</select>"+
+				"</span>"+
+			"</p>"
+		);
+	});
 
 </script>
 </html>
