@@ -59,8 +59,142 @@
 </div>
 </body>
 <script type="text/javascript">
-
-	var law_type = ["background checks", "carrying a concealed weapon", "open carry", "castle doctrine", "firearm ban"];
+	var law_type = [
+		{
+			"type_name":"background checks",
+			"has_gun_type":true,
+			"gun_type":[
+				"handguns",
+				"long guns"
+			],
+			"restrict_degree":[
+				"Background checks for sales from dealers – federal",
+				"Background checks for sales from dealers",
+				"Background checks for private sales",
+				"Permit to Purchase"
+			],
+			"degree_title":[
+				"Background checks for sales from dealers – federal",
+				"Background checks for sales from dealers only",
+				"Background checks for private sales",
+				"Background checks for permits to purchase"
+			],
+			"color":[
+				"#F1F4D8",
+				"#CFE1F3",
+				"#ACCCCB",
+				"#84B8C5"
+			]
+		},
+		{
+			"type_name":"registration",
+			"has_gun_type":true,
+			"gun_type":[
+				"handguns",
+				"long guns"
+			],
+			"restrict_degree":[
+				"Registration"
+			],
+			"degree_title":[
+				"None",
+				"Registration"
+			],
+			"color":[
+				"#F1F4D8",
+				"#84B8C5"
+			]			
+		},
+		{
+			"type_name":"carrying a concealed weapon",
+			"has_gun_type":false,
+			"restrict_degree":[
+				"Carrying a concealed weapon (CCW) - shall issue (permit not required)",
+				"Carrying a concealed weapon (CCW) - shall issue",
+				"Carrying a concealed weapon (CCW) - may issue",
+				"Carrying a concealed weapon (CCW) - prohibited"
+			],
+			"degree_title":[
+				"Permit not required",
+				"Shall issue",
+				"May issue",
+				"Prohibited"
+			],
+			"color":[
+				"#F1F4D8",
+				"#CFE1F3",
+				"#ACCCCB",
+				"#84B8C5"
+			]
+		},
+		{
+			"type_name":"open carrying",
+			"has_gun_type":true,
+			"gun_type":[
+				"handguns",
+				"long guns"
+			],
+			"restrict_degree":[
+				"Open Carry not restricted",
+				"Open Carry limited",
+				"Open Carry license required",
+				"Open Carry prohibited"
+			],
+			"degree_title":[
+				"Not restricted",
+				"Limited",
+				"License required",
+				"Prohibited"
+			],
+			"color":[
+				"#F1F4D8",
+				"#CFE1F3",
+				"#ACCCCB",
+				"#84B8C5"
+			]
+		},
+		{
+			"type_name":"castle doctrine",
+			"has_gun_type":false,
+			"restrict_degree":[
+				"Castle Doctrine - Stand Your Ground",
+				"Castle Doctrine - Expanded",
+				"Castle Doctrine"
+			],
+			"degree_title":[
+				"Stand Your Ground",
+				"Expanded",
+				"Castle Doctrine"
+			],
+			"color":[
+				"#F1F4D8",
+				"#BDD7CE",
+				"#84B8C5"
+			]
+		},
+		{
+			"type_name":"firearm ban",
+			"has_gun_type":false,
+			"restrict_degree":[
+				"Firearm Ban",
+				"Firearm Ban - Saturday Night Special Ban",
+				"Firearm Ban - Assault Weapon Ban (long guns)",
+				"Firearm Ban - Assault Weapon Ban (handguns)"
+			],
+			"degree_title":[
+				"None",
+				"Saturday night special ban",
+				"Assault weapon ban (long guns)",
+				"Assault weapon ban (handguns)"
+			],
+			"color":[
+				"#F1F4D8",
+				"#CFE1F3",
+				"#ACCCCB",
+				"#84B8C5"
+			]
+		}
+	];
 	var background_type = [];
 	var gun_type = ["handguns", "long guns"];
 	
@@ -125,10 +259,6 @@
 				.entries(law_data);
 			
 			console.log(law_type_of_law)
-				
-			var color = d3.scaleLinear()
-				.range(["rgb(213,222,217)", "rgb(69,173,168)",
-						"rgb(84,36,55)", "rgb(217,91,67)"]);
 					  
 			// D3 Projection
 			var projection = d3.geoAlbersUsa()
@@ -152,7 +282,13 @@
 					.style("stroke-width", "1")
 					.style("fill", function(d){
 						var state = this.id;
-						var state_laws;
+						var state_laws = law_state[state];
+						
+						var last_date_of_year = new Date(selected_year+1, 0, 0);
+						
+						
+						
+						
 
 						
 						return "#fe48f9";
@@ -169,15 +305,18 @@
 							"background checks"+
 						"</option>"+
 						"<option value='1'>"+
-							"carrying a concealed weapon"+
+							"registration"+
 						"</option>"+
 						"<option value='2'>"+
-							"open carry"+
+							"carrying a concealed weapon"+
 						"</option>"+
 						"<option value='3'>"+
+							"open carrying"+
+						"</option>"+							
+						"<option value='4'>"+
 							"stand your ground"+
 						"</option>"+
-						"<option value='4'>"+
+						"<option value='5'>"+
 							"firearm ban"+
 						"</option>"+
 					"</select>"+
