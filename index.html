@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<script src="./include/jquery-3.4.1.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
 <style>
 .select_container{
     border:none;
@@ -90,7 +90,27 @@
 		var svg = d3.select("#chart")
 			.attr("preserveAspectRatio", "xMinYMin meet")
 			.attr("viewBox", "0 0 1280 1024");
-			
+		
+
+		// try incident load
+		d3.json("./data/GVA_total.json", function(data) {
+			console.log(data);
+
+			var temp = d3.nest()
+			.key(function(d){ return d["date"];})
+			.entries(data);
+
+			console.log(temp);
+			console.log(data[0]);
+			//svg.selectAll("dot")
+			//.data(data)
+
+
+		});
+
+
+
+
 		d3.csv("./data/State Firearm Law.csv", function(law_data){
 			
 			// data using state as first key and type of law as second key
