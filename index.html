@@ -59,11 +59,41 @@
 	cursor:pointer;
 	box-shadow:0 2px 6px rgba(0, 0, 0, 0.3);
 }
+
+.law_content_title{
+	color:#000000;
+	font-size:1.25rem;
+	text-align:center;
+}
 #law_content_text{
+	font-family: Helvetica,Arial,sans-serif;
+	
+    width:75%;
+    height:31.22vw;
+	
+    top:7.5%;
+    left:0;
+	
+	background-color:#D3D3D3;
+	border:2px solid #666666;
+	
+	padding-top:15px;
+	padding-bottom:15px;
+	padding-left:20px;
+	padding-right:20px;
+}
+#law_content_text_container{
 	width:50%;
 
 	left:50%;
 	float:left;
+}
+.selected_state{
+	fill:#FCBA03 !important;
+	fill-opacity:1 !important;
+}
+.state_map:hover{
+	cursor:pointer;	
 }
 #law_map_chart{
 	width:50%;
@@ -77,6 +107,7 @@
 	position:relative;
 	
 	display:inline-block;
+	user-select:none;
 }
 #law_title_container{
 	width:92.5%;
@@ -100,7 +131,7 @@
 	
 	overflow:hidden;
 	
-	font-family:sans-serif "微軟正黑體";
+	font-family:Helvetica,Arial,sans-serif;
 }
 body{
 	margin:0
@@ -113,7 +144,13 @@ body{
 	<div id="law_title_container"></div>
 	<div id="law_content_container">
 		<svg id="law_map_chart"></svg>
-		<div id="law_content_text"></div>
+		<div id="law_content_text_container">
+			<div id="law_content_text">
+				<p class="law_content_title" style="opacity:0.5;">
+					please click on the state to view the laws of state
+				</p>
+			</div>
+		</div>
 	</div>
 </div>
 </body>
@@ -627,7 +664,7 @@ body{
 			.attr("viewBox", "0 0 800 720");
 		
 		law_map_g = law_map_svg.append("g")
-			.attr("transform", "translate(-100, 75)");
+			.attr("transform", "translate(-100, 50)");
 		law_legend_g = law_map_svg.append("g");
 		
 		// try incident load
@@ -699,12 +736,47 @@ body{
 					.attr("d", path)
 					.attr("id", function(d){ return d["properties"]["NAME"];})
 					.classed("state_map", true)
-					.style("stroke", "#fff")
+					.style("stroke", "#FFFFFF")
 					.style("stroke-width", "1")
 					.style("fill", function(d){
 						var state = this.id;
 						
 						return update_map(state);
+					})
+					.on("mouseover", function(d){
+						var state = this.id;
+						
+						if($("[id='"+state+"']").hasClass("selected_state")){
+						
+						}
+						else{
+							d3.select("[id='"+state+"']")
+								.style("fill-opacity", "0.75");
+						}
+
+					})
+					.on("mouseleave", function(){
+						var state = this.id;
+						
+						if($("[id='"+state+"']").hasClass("selected_state")){
+						
+						}
+						else{
+							d3.select("[id='"+state+"']")
+								.style("fill-opacity", "1");
+						}
+					})
+					.on("click", function(){
+						var state = this.id;
+						
+						if($("[id='"+state+"']").hasClass("selected_state")){
+							d3.select("[id='"+state+"']")
+								.classed("selected_state", false);
+						}
+						else{
+							d3.select("[id='"+state+"']")
+								.classed("selected_state", true);
+						}
 					});
 			});
 
