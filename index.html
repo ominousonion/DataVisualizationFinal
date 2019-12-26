@@ -60,9 +60,8 @@
 	box-shadow:0 2px 6px rgba(0, 0, 0, 0.3);
 }
 #law_title_container{
-	width:85vw;
+	width:100%;
 	
-	top:15px;
 	left:7.5vw;
 	position:relative;
 	
@@ -73,9 +72,12 @@
 	line-height:1.2;
     margin:0 0 .5rem;
 }
-#container{
+#law_map_chart{
+	width:100%;
+}
+#law_map_container{
 	width:85vw;
-	height:77.5vh;
+	height:100vh;
 	
 	left:0%;
 	position:relative;
@@ -84,13 +86,16 @@
 	
 	font-family:sans-serif "微軟正黑體";
 }
+body{
+	margin:0
+}
 </style>
 <script src="https://d3js.org/d3.v4.min.js"></script>
 </head>
 <body>
-<div id="law_title_container"></div>
-<div id="container">
-	<svg id="chart"></svg>
+<div id="law_map_container">
+	<div id="law_title_container"></div>
+	<svg id="law_map_chart"></svg>
 </div>
 </body>
 <script type="text/javascript">
@@ -122,10 +127,10 @@
 				}
 			],
 			"degree_title":[
-				"Background checks for sales from dealers – Federal",
-				"Background checks for sales from dealers only",
-				"Background checks for private sales",
-				"Background checks for permits to purchase"
+				["Background checks", "for sales from", "dealers – Federal"],
+				["Background checks", "for sales from", "dealers only"],
+				["Background checks", "for private sales"],
+				["Background checks", "for permits to", "purchase"]
 			],
 			"color":[
 				"#C8C8C8",
@@ -154,8 +159,8 @@
 				}
 			],
 			"degree_title":[
-				"None",
-				"Registration"
+				["None"],
+				["Registration"]
 			],
 			"color":[
 				"#C8C8C8",
@@ -186,10 +191,10 @@
 				}
 			],
 			"degree_title":[
-				"Permit not required",
-				"Shall issue",
-				"May issue",
-				"Prohibited"
+				["Permit not required"],
+				["Shall issue"],
+				["May issue"],
+				["Prohibited"]
 			],
 			"color":[
 				"#C8C8C8",
@@ -230,10 +235,10 @@
 				}
 			],
 			"degree_title":[
-				"Not restricted",
-				"Limited",
-				"License required",
-				"Prohibited"
+				["Not restricted"],
+				["Limited"],
+				["License required"],
+				["Prohibited"]
 			],
 			"color":[
 				"#C8C8C8",
@@ -263,9 +268,9 @@
 				}
 			],
 			"degree_title":[
-				"Stand Your Ground",
-				"Expanded",
-				"Castle Doctrine"
+				["Stand Your Ground"],
+				["Expanded"],
+				["Castle Doctrine"]
 			],
 			"color":[
 				"#C8C8C8",
@@ -297,10 +302,10 @@
 				}
 			],
 			"degree_title":[
-				"None",
-				"Saturday night special ban",
-				"Assault weapon ban — handguns",
-				"Assault weapon ban — long guns"
+				["None"],
+				["Saturday night", "special ban"],
+				["Assault weapon", "ban — handguns"],
+				["Assault weapon", "ban — long guns"]
 			],
 			"color":[
 				"#C8C8C8",
@@ -330,7 +335,11 @@
 	];
 	var selected_law_idx;
 	var selected_gun_idx;
-		
+	
+	// chart variables
+	var law_map_svg;
+	var law_map_g;
+	var law_legend_g;
 	var width = 960;
 	var height = 500;
 	
@@ -558,16 +567,50 @@
 		return current_law_type["color"][max_degree];
 	}
 	
+	function show_law_map_legend(){
+		law_legend_g.html("");
+
+		var current_law_type = law_type[selected_law_idx];
+		var current_gun_type;
+		
+		for(var i = 0; i < current_law_type["degree_title"].length; ++i){
+			var g = law_legend_g.append("g")
+				.attr("class", "law_map_legend_cell")
+				.attr("transform", "translate("+(150*i+130)+", 5)");
+				
+			g.append("rect")			
+				.attr("class", "law_map_legend_rect")
+				.attr("width", 25)
+				.attr("height", 15)
+				.attr("fill", current_law_type["color"][i]);
+				
+			var text = g.append("text")
+				.attr("class", "law_map_legend_text")
+				.attr("transform", "translate(0, 33)")
+				.style("font-size", "15px");
+				
+			for(var j = 0; j < current_law_type["degree_title"][i].length; ++j){
+				text.append("tspan")
+					.attr("x", 0)
+					.attr("dy", function(){ return (j == 0)? 0+"em":1+"em";})
+					.text(current_law_type["degree_title"][i][j]);
+			}
+		}
+	}
+	
 	$(document).ready(function() {
 		selected_month = 72;
 		selected_law_idx = 0;
 		selected_gun_idx = 0;
 		
-		var svg = d3.select("#chart")
+		law_map_svg = d3.select("#law_map_chart")
 			.attr("preserveAspectRatio", "xMinYMin meet")
 			.attr("viewBox", "0 0 1280 1024");
 		
-
+		law_map_g = law_map_svg.append("g")
+			.attr("transform", "translate(0, 75)");
+		law_legend_g = law_map_svg.append("g");
+		
 		// try incident load
 		d3.json("./data/GVA_total.json", function(data) {
 			console.log(data);
@@ -583,8 +626,6 @@
 
 
 		});
-
-
 
 
 		d3.csv("./data/State Firearm Law.csv", function(law_data){
@@ -632,14 +673,13 @@
 
 			// drawing us map
 			d3.json("./data/us-states.json", function(json) {
-				svg.selectAll("path")
+				law_map_g.selectAll("path")
 					.data(json.features)
 					.enter()
 					.append("path")
 					.attr("d", path)
 					.attr("id", function(d){ return d["properties"]["NAME"];})
 					.classed("state_map", true)
-					.attr("transform", "translate(0, 50)")
 					.style("stroke", "#fff")
 					.style("stroke-width", "1")
 					.style("fill", function(d){
@@ -648,7 +688,8 @@
 						return update_map(state);
 					});
 			});
-			
+
+			show_law_map_legend();
 		});
 		
 		$("#law_title_container").html(
@@ -749,7 +790,9 @@
 				var id = d3.select(this).attr("id");
 				
 				d3.select(this).style("fill", update_map(id));
-			});			
+			});
+
+			show_law_map_legend();
 		});
 		
 		$("#gun_type_selector").on("change", function(){
