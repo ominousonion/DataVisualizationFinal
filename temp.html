@@ -570,6 +570,22 @@ div.tooltip {
 		return current_law_type["color"][max_degree];
 	}
 	
+    function update_dot_check(date){
+		
+        var dot_date = new Date(date);
+        var dot_date_compare = dot_date.getFullYear()-2014 + dot_date.getMonth()+1;
+        
+        //console.log(selected_month)
+		
+        if(dot_date_compare > selected_month){
+            return false;
+        }
+        else{
+            return true;
+        }
+	}
+	
+
 	$(document).ready(function() {
 		selected_month = 72;
 		selected_law_idx = 0;
@@ -668,6 +684,7 @@ div.tooltip {
                 .data(data)
                 .enter()
                 .append("circle")
+                .attr("class", function(d) {return d.date;})
                 .attr("cx", function(d) {
                     return projection([d.longitude, d.latitude])[0];
                 })
@@ -684,7 +701,7 @@ div.tooltip {
                     div.transition()        
                         .duration(50)      
                         .style("opacity", .9);      
-                        
+
                     // change line problem unsolve  
                     div.text(d.date + "\n" + d.state)
                         .style("left", (d3.event.pageX) + "px")     
@@ -766,6 +783,20 @@ div.tooltip {
 				var id = d3.select(this).attr("id");
 				
 				d3.select(this).style("fill", update_map(id));
+			});
+
+            d3.selectAll("circle").each(function(){
+				var date = d3.select(this).attr("class");
+				
+                var show_dot = update_dot_check(date);
+                //console.log("working")
+                if(show_dot == false){
+                    console.log("get in");
+    				d3.select(this)
+                    .exit()
+                    .remove();
+                    
+                }
 			});
 		});
 		
