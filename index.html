@@ -59,10 +59,29 @@
 	cursor:pointer;
 	box-shadow:0 2px 6px rgba(0, 0, 0, 0.3);
 }
-#law_title_container{
-	width:100%;
+#law_content_text{
+	width:50%;
+
+	left:50%;
+	float:left;
+}
+#law_map_chart{
+	width:50%;
 	
-	left:7.5vw;
+	left:0%;
+	float:left;
+}
+#law_content_container{
+	width:92.5%;
+	left:7.5%;
+	position:relative;
+	
+	display:inline-block;
+}
+#law_title_container{
+	width:92.5%;
+	
+	left:7.5%;
 	position:relative;
 	
     color:#333333;
@@ -72,11 +91,8 @@
 	line-height:1.2;
     margin:0 0 .5rem;
 }
-#law_map_chart{
-	width:100%;
-}
 #law_map_container{
-	width:85vw;
+	width:100vw;
 	height:100vh;
 	
 	left:0%;
@@ -95,7 +111,10 @@ body{
 <body>
 <div id="law_map_container">
 	<div id="law_title_container"></div>
-	<svg id="law_map_chart"></svg>
+	<div id="law_content_container">
+		<svg id="law_map_chart"></svg>
+		<div id="law_content_text"></div>
+	</div>
 </div>
 </body>
 <script type="text/javascript">
@@ -341,7 +360,7 @@ body{
 	var law_map_g;
 	var law_legend_g;
 	var width = 960;
-	var height = 500;
+	var height = 600;
 	
 	/* 
 		law_data: a two level dictionary
@@ -576,7 +595,7 @@ body{
 		for(var i = 0; i < current_law_type["degree_title"].length; ++i){
 			var g = law_legend_g.append("g")
 				.attr("class", "law_map_legend_cell")
-				.attr("transform", "translate("+(150*i+130)+", 5)");
+				.attr("transform", "translate("+(7 + 150*i)+", 5)");
 				
 			g.append("rect")			
 				.attr("class", "law_map_legend_rect")
@@ -605,10 +624,10 @@ body{
 		
 		law_map_svg = d3.select("#law_map_chart")
 			.attr("preserveAspectRatio", "xMinYMin meet")
-			.attr("viewBox", "0 0 1280 1024");
+			.attr("viewBox", "0 0 800 720");
 		
 		law_map_g = law_map_svg.append("g")
-			.attr("transform", "translate(0, 75)");
+			.attr("transform", "translate(-100, 75)");
 		law_legend_g = law_map_svg.append("g");
 		
 		// try incident load
