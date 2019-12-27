@@ -87,14 +87,15 @@
 div.tooltip {   
  	position: absolute;           
 	text-align: center;           
-	width: 120px;                  
-	height: 28px;                 
+	width: 200px;                  
+	height: 300px;                 
 	padding: 2px;             
 	font: 12px sans-serif;        
 	background: white;   
 	border: 0px;      
 	border-radius: 8px;           
-	pointer-events: none;         
+	pointer-events: none;     
+    transition-duration: 1s;    
 }
 </style>
 <script src="https://d3js.org/d3.v4.min.js"></script>
@@ -570,12 +571,27 @@ div.tooltip {
 		return current_law_type["color"][max_degree];
 	}
 	
+    // coded by Frank
+
+    function get_participants(participants_arr){
+        var participants_string = ""
+
+        //length can't use
+        for (var i = 0; i < participants_arr.length; i++){
+            participants_string = participants_string + "Type : " + participants_arr[i][0] + ", Name : " + participants_arr[i][1] + ", Age : " + participants_arr[i][2] + ", Age Group : " + participants_arr[i][3] + ", Gender : " + participants_arr[i][4] + ", Status : " + participants_arr[i][5] + "<br>";
+        }
+
+        return participants_string;
+    }
+
+
+
     function update_dot_check(date){
 		
         var dot_date = new Date(date);
-        var dot_date_compare = dot_date.getFullYear()-2014 + dot_date.getMonth()+1;
+        var dot_date_compare = 12*(dot_date.getFullYear()-2014) + dot_date.getMonth()+1;
         
-        //console.log(selected_month)
+        //console.log(date + "\n" + dot_date_compare)
 		
         if(dot_date_compare > selected_month){
             return false;
@@ -660,6 +676,8 @@ div.tooltip {
 					});
 			});
 
+            // coded by Frank
+
             // tooltip for dots mouseover
             var div = d3.select("body")
                 .append("div")   
@@ -670,15 +688,19 @@ div.tooltip {
     		d3.json("./data/GVA_total.json", function(data) {
                 console.log(data);
 
-                var temp = d3.nest()
-                .key(function(d){ return d["date"];})
-                .entries(data);
+                data.forEach(function(d){
+                    d.killed = parseInt(d.killed);
+                    d.injured = parseInt(d.injured);
+                    d.casualties = d.killed + d.injured;
+//                    d.temp = get_participants(d.participants);
+//                    d.dot_information = d.date + "<br>" + d.state + "<br>" + d.city + "<br>" + d.address + "<br>" + "Casualties : " + (d.casualties) + "<br>" + d.temp;
+                    d.dot_information = d.date + "<br>" + d.state + "<br>" + d.city + "<br>" + d.address + "<br>" + "Casualties : " + (d.casualties) + "<br>" + d.participants;
+                    
+                    
+                
+                });
 
-                console.log(temp);
-                console.log(data[0]);                
-    	
-                console.log(projection([-90.084, 29.9542]))
-
+                
                 // draw dots
                 svg.selectAll("circle")
                 .data(data)
@@ -692,20 +714,20 @@ div.tooltip {
                     return projection([d.longitude, d.latitude])[1];
                 })
                 .attr("r", function(d) {
-                    return 2;
+                    return 5;
                 })
                 .style("fill", "rgb(217,91,67)")	
                 .style("opacity", 0.85)	
+                .attr("html", function(d) {return d.dot_information ;})
 
                 .on("mouseover", function(d) {  
                     div.transition()        
                         .duration(50)      
                         .style("opacity", .9);      
 
-                    // change line problem unsolve  
-                    div.text(d.date + "\n" + d.state)
+                    div.html(d.dot_information)
                         .style("left", (d3.event.pageX) + "px")     
-                        .style("top", (d3.event.pageY - 28) + "px");    
+                        .style("top", (d3.event.pageY - 28) + "px");  
                 })   
       
                 .on("mouseout", function(d) {       
@@ -784,18 +806,37 @@ div.tooltip {
 				
 				d3.select(this).style("fill", update_map(id));
 			});
+            
+            // coded by Frank
 
             d3.selectAll("circle").each(function(){
 				var date = d3.select(this).attr("class");
+                var html_text = d3.select(this).attr("html");
 				
                 var show_dot = update_dot_check(date);
-                //console.log("working")
+
                 if(show_dot == false){
-                    console.log("get in");
-    				d3.select(this)
-                    .exit()
-                    .remove();
-                    
+    			    d3.select(this)
+                    .style("opacity", 0)
+                    .on("mouseover", function(d) { 
+                        d3.select(".tooltip")
+                        .transition()
+                        .duration(50)
+                        .style("opacity", 0)
+                    });
+                }
+                else{
+                    d3.select(this)
+                    .style("opacity", .9)
+                    .on("mouseover", function(d) { 
+                        d3.select(".tooltip")
+                        .transition()
+                        .duration(50)
+                        .style("opacity", .9)
+                        .attr("html", html_text)
+                        .style("left", (d3.event.pageX) + "px")     
+                        .style("top", (d3.event.pageY - 28) + "px");
+                    });
                 }
 			});
 		});
