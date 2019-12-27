@@ -420,6 +420,7 @@ body{
 		
 		var max_degree = 0;
 		var active_law = [];
+		var active_degree = []
 		
 		if(current_law_type["law_degree_checking"]){
 			if(current_law_type["has_gun_type"]){
@@ -467,6 +468,7 @@ body{
 					if(latest_law != null){
 						max_degree = i + 1;
 						active_law.push(latest_law);
+						active_degree.push(max_degree);
 					}
 				}
 			}
@@ -512,6 +514,7 @@ body{
 					if(latest_law != null){
 						max_degree = i + 1;
 						active_law.push(latest_law);
+						active_degree.push(max_degree);
 					}
 				}
 			}
@@ -564,6 +567,7 @@ body{
 							max_degree = i;
 						}
 						active_law.push(latest_law);
+						active_degree.push(i);
 					}
 				}	
 			}
@@ -612,6 +616,7 @@ body{
 							max_degree = i;
 						}
 						active_law.push(latest_law);
+						active_degree.push(i);
 					}
 				}
 			}
@@ -619,7 +624,8 @@ body{
 		
 		$("[id='"+state+"']").data("degree", max_degree);
 		$("[id='"+state+"']").data("active_law", active_law);
-
+		$("[id='"+state+"']").data("active_degree", active_degree);
+		
 		return current_law_type["color"][max_degree];
 	}
 	
@@ -651,6 +657,30 @@ body{
 					.attr("dy", function(){ return (j == 0)? 0+"em":1+"em";})
 					.text(current_law_type["degree_title"][i][j]);
 			}
+		}
+	}
+	
+	function show_law_content_text(){
+		if($(".selected_state").length){
+			var state_id = $(".selected_state")[0].id;
+			var degree = $("[id='"+state_id+"']").data("degree");
+			var active_laws = $("[id='"+state_id+"']").data("active_law");
+			var active_degree = $("[id='"+state_id+"']").data("active_degree");
+			
+			if(active_laws.length > 0){
+				$("#law_content_text").html();
+			}
+			else{
+				$("#law_content_text").html();
+			}
+		}
+		else{
+			console.log("nothing select");
+			$("#law_content_text").html(
+				"<p class='law_content_title' style='opacity:0.5;'>"+
+					"please click on the state to view the laws of state"+
+				"</p>"
+			);
 		}
 	}
 	
@@ -746,7 +776,7 @@ body{
 					.on("mouseover", function(d){
 						var state = this.id;
 						
-						if($("[id='"+state+"']").hasClass("selected_state")){
+						if(d3.select("[id='"+state+"']").classed("selected_state")){
 						
 						}
 						else{
@@ -758,7 +788,7 @@ body{
 					.on("mouseleave", function(){
 						var state = this.id;
 						
-						if($("[id='"+state+"']").hasClass("selected_state")){
+						if(d3.select("[id='"+state+"']").classed("selected_state")){
 						
 						}
 						else{
@@ -768,8 +798,8 @@ body{
 					})
 					.on("click", function(){
 						var state = this.id;
-						
-						if($("[id='"+state+"']").hasClass("selected_state")){
+
+						if(d3.select("[id='"+state+"']").classed("selected_state")){
 							d3.select("[id='"+state+"']")
 								.classed("selected_state", false);
 						}
@@ -777,6 +807,18 @@ body{
 							d3.select("[id='"+state+"']")
 								.classed("selected_state", true);
 						}
+						
+						d3.selectAll(".selected_state")
+							.classed("selected_state", function(){
+								if(this.id != state){
+									return false;
+								}
+								else{
+									return true;
+								}
+							});
+							
+						show_law_content_text();
 					});
 			});
 
