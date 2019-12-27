@@ -59,10 +59,36 @@
 	cursor:pointer;
 	box-shadow:0 2px 6px rgba(0, 0, 0, 0.3);
 }
-
+.law_content_main_content{
+	margin-top:5px;
+}
+.law_content_time{
+	color:#757575;
+	font-size:0.9rem;
+	font-weight:normal;
+	text-align:left;
+	margin:0;
+}
+.law_content_citation{
+	color:#666666;
+	font-size:1rem;
+	font-weight:bold;
+	text-align:left;
+	margin:0;
+}
+.law_content_type{
+	font-size:1rem;
+	font-weight:bold;
+	text-align:left;
+}
+.law_type_block{
+	margin-bottom:30px;
+}
 .law_content_title{
 	color:#000000;
+	opacity:0.7;
 	font-size:1.25rem;
+	font-weight:bold;
 	text-align:center;
 }
 #law_content_text{
@@ -81,12 +107,33 @@
 	padding-bottom:15px;
 	padding-left:20px;
 	padding-right:20px;
+	
+	overflow-x:hidden;
+	overflow-y:auto;
+}
+#law_content_text::-webkit-scrollbar-track{
+	-webkit-box-shadow: inset 0 0 6px rgba(0,0,0,0.3);
+	border-radius:5px;
+	background-color:#F5F5F5;
+}
+#law_content_text::-webkit-scrollbar{
+	width:10px;
+	background-color:#F5F5F5;
+}
+#law_content_text::-webkit-scrollbar-thumb{
+	border-radius:5px;
+	-webkit-box-shadow: inset 0 0 6px rgba(0,0,0,0.3);
+	background-color:#A6A6A6;
+}
+#law_content_text::-webkit-scrollbar-thumb:hover{
+	background-color:#757575;
 }
 #law_content_text_container{
 	width:50%;
 
 	left:50%;
 	float:left;
+	user-select:text;
 }
 .selected_state{
 	fill:#FCBA03 !important;
@@ -666,16 +713,71 @@ body{
 			var degree = $("[id='"+state_id+"']").data("degree");
 			var active_laws = $("[id='"+state_id+"']").data("active_law");
 			var active_degree = $("[id='"+state_id+"']").data("active_degree");
-			
+			var current_time = new Date(2014, selected_month-1, 1);
+			console.log(active_laws);
 			if(active_laws.length > 0){
-				$("#law_content_text").html();
+				var html_content = "";
+				
+				html_content +=
+					"<p class='law_content_title'>"+
+						state_id + "&nbsp;laws in effect in&nbsp;"+
+						current_time.getFullYear() + "&nbsp;" + month_name[current_time.getMonth()]+
+					"</p>"+
+					"<div class='law_content_block'>";
+				
+				for(var i = active_laws.length-1; i >= 0; --i){
+					var degree_title = "";
+					
+					for(var j = 0; j < law_type[selected_law_idx]["degree_title"][active_degree[i]].length; ++j){
+						if(j != 0){
+							degree_title += "&nbsp;";
+						}
+						degree_title += law_type[selected_law_idx]["degree_title"][active_degree[i]][j];
+					}
+					
+					var effected_date = active_laws[i]["Effective Date Year"] + "-" + active_laws[i]["Effective Date Month"] + "-" + active_laws[i]["Effective Date Day"];
+					var supressed_date;
+					
+					if(active_laws[i]["Supercession Date"] == ""){
+						supressed_date = "Present";
+					}
+					else{
+						var sup_date = new Date(active_laws[i]["Supercession Date"])
+						
+						supressed_date = sup_date.getFullYear() + "-" + sup_date.getMonth()+1 + "-" + sup_date.getDate();
+					}
+							
+					html_content +=
+						"<div class='law_type_block'>"+
+							"<p class='law_content_type'>"+
+								degree_title+
+							"</p>"+
+							"<p class='law_content_citation'>"+
+								active_laws[i]["Statutory Citation"]+
+							"</p>"+
+							"<p class='law_content_time'>"+
+								"Active from&nbsp;" + effected_date + "&nbsp;~&nbsp;" + supressed_date+
+							"</p>"+
+							"<p class='law_content_main_content'>"+
+								active_laws[i]["Content"].replace(/\?/g, '')+
+							"</p>"+
+						"</div>";
+				}
+				
+				html_content += "</div>";
+				
+				$("#law_content_text").html(html_content);
 			}
 			else{
-				$("#law_content_text").html();
+				$("#law_content_text").html(
+					"<p class='law_content_title'>"+
+						"Np&nbsp;" + state_id + "&nbsp;law is effective in&nbsp;" +
+						current_time.getFullYear() + "&nbsp;" + month_name[current_time.getMonth()]+
+					"</p>"
+				);
 			}
 		}
 		else{
-			console.log("nothing select");
 			$("#law_content_text").html(
 				"<p class='law_content_title' style='opacity:0.5;'>"+
 					"please click on the state to view the laws of state"+
@@ -889,6 +991,8 @@ body{
 				
 				d3.select(this).style("fill", update_map(id));
 			});
+			
+			show_law_content_text();
 		});
 		
 		$("#law_type_selector").on("change", function(){
@@ -926,6 +1030,7 @@ body{
 			});
 
 			show_law_map_legend();
+			show_law_content_text();
 		});
 		
 		$("#gun_type_selector").on("change", function(){
@@ -935,7 +1040,10 @@ body{
 				var id = d3.select(this).attr("id");
 				
 				d3.select(this).style("fill", update_map(id));
-			});	
+			});
+			
+			show_law_map_legend();
+			show_law_content_text();
 		});
 	});
 
