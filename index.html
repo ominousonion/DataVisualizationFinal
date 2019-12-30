@@ -157,7 +157,7 @@
 	user-select:none;
 }
 #law_title_container{
-	width:92.5%;
+	width:85%;
 	
 	left:7.5%;
 	position:relative;
@@ -180,13 +180,86 @@
 	
 	font-family:Helvetica,Arial,sans-serif;
 }
+#overview_map_chart{
+	width:50%;
+	
+	left:0%;
+	float:left;
+}
+#overview_content_container{
+	width:92.5%;
+	left:7.5%;
+	position:relative;
+	
+	display:inline-block;
+	user-select:none;
+}
+#year_slider{
+	-webkit-appearance: none;
+	width:37.5%;
+	height:10px;
+	border-radius:2.5px;
+	background:#D3D3D3;
+	outline:none;
+	opacity:0.7;
+	padding:0;
+}
+#year_slider:hover{
+	opacity:1;
+
+}
+#year_slider::-webkit-slider-thumb{
+	-webkit-appearance:none;
+	appearance:none;
+	width:25px;
+	height:25px;
+	border-radius:50%;
+	background:#FFFFFF;
+	cursor: pointer;
+
+	border:2px solid #666666;
+}
+#year_slider::-webkit-slider-thumb:hover{
+	box-shadow:0 2px 6px rgba(0, 0, 0, 0.3);
+}
+#overview_title_container{
+	width:85%;
+	
+	left:7.5%;
+	position:relative;
+	
+    color:#333333;
+	font-size:1.625rem;
+    font-family:Helvetica,Arial,sans-serif;
+	
+	line-height:1.2;
+    margin:0 0 .5rem;
+}
+#overview_container{
+	width:100vw;
+	height:100vh;
+	
+	left:0%;
+	position:relative;
+	
+	overflow:hidden;
+	
+	font-family:Helvetica,Arial,sans-serif;
+}
 body{
-	margin:0
+	margin:0;
+	overflow-x:hidden;
 }
 </style>
 <script src="https://d3js.org/d3.v4.min.js"></script>
 </head>
 <body>
+<div id="overview_container">
+	<div id="overview_title_container"></div>
+	<div id="overview_content_container">
+		<svg id="overview_map_chart"></svg>
+	</div>
+</div>
 <div id="law_map_container">
 	<div id="law_title_container"></div>
 	<div id="law_content_container">
@@ -245,7 +318,14 @@ body{
 				"start":"states have",
 				"middle":"laws on the purchase of",
 				"end":""
-			}
+			},
+			"score_accumulate":false,
+			"safety_score":[
+				0,
+				5,
+				10,
+				15
+			]
 		},
 		{
 			"type_name":"registration",
@@ -273,7 +353,12 @@ body{
 				"start":"states have",
 				"middle":"laws on the type of",
 				"end":""
-			}
+			},
+			"score_accumulate":false,
+			"safety_score":[
+				0,
+				10
+			]
 		},
 		{
 			"type_name":"carrying a concealed weapon",
@@ -309,7 +394,14 @@ body{
 				"start":"states have",
 				"middle":"laws",
 				"end":""
-			}
+			},
+			"score_accumulate":false,
+			"safety_score":[
+				-5,
+				5,
+				10,
+				15
+			]
 		},
 		{
 			"type_name":"open carrying",
@@ -353,7 +445,14 @@ body{
 				"start":"states have",
 				"middle":"laws on the type of",
 				"end":""
-			}
+			},
+			"score_accumulate":false,
+			"safety_score":[
+				-10,
+				5,
+				10,
+				15
+			]
 		},
 		{
 			"type_name":"castle doctrine",
@@ -384,7 +483,13 @@ body{
 				"start":"states have",
 				"middle":"laws",
 				"end":""
-			}
+			},
+			"score_accumulate":false,
+			"safety_score":[
+				-5,
+				0,
+				5
+			]
 		},
 		{
 			"type_name":"firearm ban",
@@ -420,14 +525,30 @@ body{
 				"start":"states have",
 				"middle":"laws",
 				"end":""
-			}
+			},
+			"score_accumulate":true,
+			"safety_score":[
+				0,
+				5,
+				10,
+				10
+			]
 		}
 	];
+	
+	/*
+	var safety_rank_color = [
+		"#FFA723", "#F4AD44",
+		"#E9B465", "#DEBA86",
+		"#D3C1A7", "#C8C8C8"
+	];
+	*/
 	
 	// month slider
 	var month_start = 1;
 	var month_end = 72;
 	var selected_month = 72;
+	
 	const month_name = [
 		"Jan", "Feb",
 		"Mar", "Apr",
@@ -438,6 +559,20 @@ body{
 	];
 	var selected_law_idx;
 	var selected_gun_idx;
+	
+	// overview map variables
+	var overview_map_svg;
+	var overview_map_g;
+	var overview_map_legend_g;
+	var overview_width = 960;
+	var overview_height = 600;
+	var score_scale_color;
+	
+	// year selector for overview
+	var year_start = 1;
+	var year_end = 6;
+	var selected_year = 6
+	var selected_overview_idx;
 	
 	// chart variables
 	var law_map_svg;
@@ -456,6 +591,310 @@ body{
 				law				
 	*/
 	var law_state = {};
+	
+	// calculate score for overview
+	// id = overview_stateName
+	function calculate_score(id){
+		var state = id.replace("overview_", "");
+		var state_laws = law_state[state];
+		
+		var current_time = new Date(2014+parseInt(selected_year), 0, 1);
+		var safety_score = 0;
+
+		for(var i = 0; i < law_type.length; ++i){
+			var current_law_type = law_type[i];
+			
+			if(current_law_type["score_accumulate"]){
+				if(current_law_type["has_gun_type"]){
+					for(j = 0; j < current_law_type["gun_type"].length; ++j){
+						var current_gun_type = current_law_type["gun_type"][j];
+						var search_key;
+						
+						for(k = 0; k < current_law_type["restrict_degree"].length; ++k){
+							search_key = current_law_type["restrict_degree"][k]["key_name"] + " " + current_law_type["restrict_degree"][k]["connect_symbol"] + " " + current_gun_type;
+							var latest_law = null;
+							var latest_date = new Date(-8640000000000000);
+							
+							if(search_key in state_laws){
+								for(var l = 0; l < state_laws[search_key].length; ++l){
+									var law = state_laws[search_key][l];
+									
+									// check whether the law had been supressed
+									if(law["Supercession Date"] != ""){
+										var supressed_date = new Date(law["Supercession Date"]);
+										
+										if(current_time.getTime() > supressed_date.getTime()){
+											continue;
+										}
+									}
+									
+									// check whether the law is effected
+									if(law["Effective Date"] != ""){
+										var effective_date = new Date(law["Effective Date"]);
+										
+										if(current_time.getTime() >= effective_date.getTime()){
+											if(effective_date.getTime() > latest_date.getTime()){
+												latest_date = effective_date;
+												latest_law = law;
+											}
+										}
+									}
+									else{
+										continue;
+									}
+								}
+							}
+							else{
+								continue;
+							}
+							
+							if(latest_law != null){
+								if(current_law_type["law_degree_checking"]){
+									safety_score += current_law_type["safety_score"][k+1];
+								}
+								else{
+									safety_score += current_law_type["safety_score"][k];
+								}
+							}
+						}
+					}
+				}
+				else{
+					var search_key;
+					
+					for(j = 0; j < current_law_type["restrict_degree"].length; ++j){
+						search_key = current_law_type["restrict_degree"][j]["key_name"];
+						var latest_law = null;
+						var latest_date = new Date(-8640000000000000);
+						
+						if(search_key in state_laws){
+							for(var k = 0; k < state_laws[search_key].length; ++k){
+								var law = state_laws[search_key][k];
+								
+								// check whether the law had been supressed
+								if(law["Supercession Date"] != ""){
+									var supressed_date = new Date(law["Supercession Date"]);
+									
+									if(current_time.getTime() > supressed_date.getTime()){
+										continue;
+									}
+								}
+								
+								// check whether the law is effected
+								if(law["Effective Date"] != ""){
+									var effective_date = new Date(law["Effective Date"]);
+									
+									if(current_time.getTime() >= effective_date.getTime()){
+										if(effective_date.getTime() > latest_date.getTime()){
+											latest_date = effective_date;
+											latest_law = law;
+										}
+									}
+								}
+								else{
+									continue;
+								}
+							}
+						}
+						else{
+							continue;
+						}
+						
+						if(latest_law != null){
+							if(current_law_type["law_degree_checking"]){
+								safety_score += current_law_type["safety_score"][j+1];
+							}
+							else{
+								safety_score += current_law_type["safety_score"][j];
+							}
+						}
+					}
+				}
+			}
+			else{
+				if(current_law_type["has_gun_type"]){
+					for(j = 0; j < current_law_type["gun_type"].length; ++j){
+						var current_gun_type = current_law_type["gun_type"][j];
+						var max_degree = 0;
+						var search_key;
+						
+						for(k = 0; k < current_law_type["restrict_degree"].length; ++k){
+							search_key = current_law_type["restrict_degree"][k]["key_name"] + " " + current_law_type["restrict_degree"][k]["connect_symbol"] + " " + current_gun_type;
+							var latest_law = null;
+							var latest_date = new Date(-8640000000000000);
+							
+							if(search_key in state_laws){
+								for(var l = 0; l < state_laws[search_key].length; ++l){
+									var law = state_laws[search_key][l];
+									
+									// check whether the law had been supressed
+									if(law["Supercession Date"] != ""){
+										var supressed_date = new Date(law["Supercession Date"]);
+										
+										if(current_time.getTime() > supressed_date.getTime()){
+											continue;
+										}
+									}
+									
+									// check whether the law is effected
+									if(law["Effective Date"] != ""){
+										var effective_date = new Date(law["Effective Date"]);
+										
+										if(current_time.getTime() >= effective_date.getTime()){
+											if(effective_date.getTime() > latest_date.getTime()){
+												latest_date = effective_date;
+												latest_law = law;
+											}
+										}
+									}
+									else{
+										continue;
+									}
+								}
+							}
+							else{
+								continue;
+							}
+							
+							if(latest_law != null){
+								if(current_law_type["law_degree_checking"]){
+									max_degree = k + 1;
+								}
+								else{
+									if(k > max_degree){
+										max_degree = k;
+									}
+								}
+							}
+						}
+						
+						safety_score += current_law_type["safety_score"][max_degree];
+					}
+				}
+				else{
+					var max_degree = 0;
+					var search_key;
+					
+					for(j = 0; j < current_law_type["restrict_degree"].length; ++j){
+						search_key = current_law_type["restrict_degree"][j]["key_name"];
+						var latest_law = null;
+						var latest_date = new Date(-8640000000000000);
+						
+						if(search_key in state_laws){
+							for(var k = 0; k < state_laws[search_key].length; ++k){
+								var law = state_laws[search_key][k];
+								
+								// check whether the law had been supressed
+								if(law["Supercession Date"] != ""){
+									var supressed_date = new Date(law["Supercession Date"]);
+									
+									if(current_time.getTime() > supressed_date.getTime()){
+										continue;
+									}
+								}
+								
+								// check whether the law is effected
+								if(law["Effective Date"] != ""){
+									var effective_date = new Date(law["Effective Date"]);
+									
+									if(current_time.getTime() >= effective_date.getTime()){
+										if(effective_date.getTime() > latest_date.getTime()){
+											latest_date = effective_date;
+											latest_law = law;
+										}
+									}
+								}
+								else{
+									continue;
+								}
+							}
+						}
+						else{
+							continue;
+						}
+						
+						if(latest_law != null){
+							if(current_law_type["law_degree_checking"]){
+								max_degree = k + 1;
+							}
+							else{
+								if(k > max_degree){
+									max_degree = k;
+								}
+							}
+						}
+					}
+					
+					safety_score += current_law_type["safety_score"][max_degree];
+				}
+			}
+		}
+
+		$("[id='"+id+"']").data("safety_score", safety_score);
+		
+		return safety_score;
+	}
+	
+	function score_ranking(score){
+		if(score >= 96 && score <= 120){
+			return 0;
+		}
+		else if(score >= 71 && score <= 95){
+			return 1;
+		}
+		else if(score >= 46 && score <= 70){
+			return 2;
+		}
+		else if(score >= 21 && score <= 45){
+			return 3;
+		}
+		else if(score >= -4 && score <= 20){
+			return 4;
+		}
+		else{
+			return 5;
+		}
+	}
+	
+	function show_overview_map_legend(){
+		overview_map_legend_g.html("");
+		
+		var g = overview_map_legend_g.append("g")
+			.attr("class", "overview_map_legend_cell")
+			.attr("transform", "translate(10, 5)");
+			
+		var text = g.append("text")
+			.attr("class", "law_map_legend_text")
+			.attr("transform", "translate(0, 46)")
+			.style("font-size", "1.25em");
+			
+		text.append("tspan")
+			.attr("x", 312.5)
+			.attr("dy", 0)
+			.text("Loose");
+			
+		text.append("tspan")
+			.attr("x", 640)
+			.attr("dy", 0)
+			.text("Restrictive");
+			
+			
+		var arr = d3.range(251);
+		
+		var legend_scale = d3.scaleLinear()
+			.domain([0, 250])
+			.range([-30, 120]);
+	
+		g.selectAll('rect')
+			.data(arr)
+			.enter()
+			.append('rect')
+			.attr("x", function(d){ return 375+d; })
+			.attr("y", 30)
+			.style("width", 5)
+			.style("height", 20)
+			.style("fill", function(d){ return score_scale_color(legend_scale(d));});
+	}
 	
 	function update_map(id){
 		var state = id;
@@ -787,6 +1226,18 @@ body{
 	}
 	
 	$(document).ready(function() {
+		selected_year = 6;
+		selected_overview_idx = 0;
+		
+		overview_map_svg = d3.select("#overview_map_chart")
+			.attr("preserveAspectRatio", "xMinYMin meet")
+			.attr("viewBox", "0 0 800 720");
+		
+		overview_map_g = overview_map_svg.append("g")
+			.attr("transform", "translate(-100, 50)");
+			
+		overview_map_legend_g = overview_map_svg.append("g");
+		
 		selected_month = 72;
 		selected_law_idx = 0;
 		selected_gun_idx = 0;
@@ -798,23 +1249,6 @@ body{
 		law_map_g = law_map_svg.append("g")
 			.attr("transform", "translate(-100, 50)");
 		law_legend_g = law_map_svg.append("g");
-		
-		// try incident load
-		d3.json("./data/GVA_total.json", function(data) {
-			console.log(data);
-
-			var temp = d3.nest()
-			.key(function(d){ return d["date"];})
-			.entries(data);
-
-			console.log(temp);
-			console.log(data[0]);
-			//svg.selectAll("dot")
-			//.data(data)
-
-
-		});
-
 
 		d3.csv("./data/State Firearm Law.csv", function(law_data){
 			
@@ -850,7 +1284,20 @@ body{
 				.entries(law_data);
 			
 			console.log(law_type_of_law)
-					  
+
+			var overview_projection = d3.geoAlbersUsa()
+				.translate([overview_width/2, overview_height/2])
+				.scale([1000]);   
+
+			var overview_path = d3.geoPath()
+			  .projection(overview_projection);
+			
+			// color for overview score
+			score_scale_color = d3.scaleLinear()
+				.domain([-30, 0, 120])
+				.range(["#B80000", "#FFA700", "#A3C800"])
+				.interpolate(d3.interpolateRgb);
+			
 			// D3 Projection
 			var projection = d3.geoAlbersUsa()
 				.translate([width/2, height/2])
@@ -861,6 +1308,28 @@ body{
 
 			// drawing us map
 			d3.json("./data/us-states.json", function(json) {
+				// draw overview map
+				overview_map_g.selectAll("path")
+					.data(json.features)
+					.enter()
+					.append("path")
+					.attr("d", overview_path)
+					.attr("id", function(d){ return "overview_" + d["properties"]["NAME"];})
+					.classed("overview_state_map", true)
+					.style("stroke", "#FFFFFF")
+					.style("stroke-width", "1")
+					.style("fill", function(d){
+						var id = this.id;
+						
+						var score = calculate_score(id);					
+						
+						return score_scale_color(score);
+					});
+			
+				show_overview_map_legend();
+				
+				
+				// draw law map
 				law_map_g.selectAll("path")
 					.data(json.features)
 					.enter()
@@ -927,6 +1396,18 @@ body{
 			show_law_map_legend();
 		});
 		
+		$("#overview_title_container").html(
+			"<p id='overview_title'>"+
+				"<span id='overview_title_text'>"+
+					"Gun Law Overview –&nbsp;"+
+				"</span>"+
+				"<span id='overview_title_year'>"+
+					"2019"+
+				"</span>"+
+			"</p>"+
+			"<input id='year_slider' type='range' min='" + year_start + "' max='" + year_end + "' value='" + year_end + "'/>"
+		);
+		
 		$("#law_title_container").html(
 			"<p id='law_title'>"+
 				"<span id='month_year'>"+
@@ -975,6 +1456,25 @@ body{
 			"</p>"+
 			"<input id='month_slider' type='range' min='" + month_start + "' max='" + month_end + "' value='" + month_end + "'/>"
 		);
+		
+		$("#year_slider").on("input", function(){
+			selected_year = $(this).val();
+			var year = parseInt(selected_year) + 2013;
+			
+			$("#overview_title_year").html(year);
+
+			d3.selectAll(".overview_state_map").each(function(){
+				var id = d3.select(this).attr("id");
+
+				d3.select(this).style("fill", function(d){
+					var score = calculate_score(id);
+					
+					return score_scale_color(score);
+				});
+				
+				console.log($("[id='"+id+"']").data("safety_score"));
+			});
+		});
 		
 		$("#month_slider").on("input", function(){
 			selected_month = $(this).val();
