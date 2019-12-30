@@ -135,6 +135,9 @@
 	float:left;
 	user-select:text;
 }
+.gva_circle{
+	cursor:pointer;
+}
 .selected_state{
 	fill:#FCBA03 !important;
 	fill-opacity:1 !important;
@@ -179,6 +182,15 @@
 	overflow:hidden;
 	
 	font-family:Helvetica,Arial,sans-serif;
+}
+.casulity_dot{
+	cursor:pointer;
+}
+#overview_point_chart{
+	width:50%;
+	
+	left:50%;
+	float:left;
 }
 #overview_map_chart{
 	width:50%;
@@ -246,6 +258,21 @@
 	
 	font-family:Helvetica,Arial,sans-serif;
 }
+div.tooltip>span{
+	line-height:1.2;
+	display:block;
+}
+div.tooltip {   
+ 	position:absolute;           
+	text-align:left;
+	
+	padding:5px;             
+	font:12px sans-serif;        
+	background:#BCBCBC;   
+	border:0px;      
+	border-radius:8px;           
+	pointer-events:none;
+}
 body{
 	margin:0;
 	overflow-x:hidden;
@@ -254,25 +281,26 @@ body{
 <script src="https://d3js.org/d3.v4.min.js"></script>
 </head>
 <body>
-<div id="overview_container">
-	<div id="overview_title_container"></div>
-	<div id="overview_content_container">
-		<svg id="overview_map_chart"></svg>
-	</div>
-</div>
-<div id="law_map_container">
-	<div id="law_title_container"></div>
-	<div id="law_content_container">
-		<svg id="law_map_chart"></svg>
-		<div id="law_content_text_container">
-			<div id="law_content_text">
-				<p class="law_content_title" style="opacity:0.5;">
-					please click on the state to view the laws of state
-				</p>
+	<div id="law_map_container">
+		<div id="law_title_container"></div>
+		<div id="law_content_container">
+			<svg id="law_map_chart"></svg>
+			<div id="law_content_text_container">
+				<div id="law_content_text">
+					<p class="law_content_title" style="opacity:0.5;">
+						please click on the state to view the laws of state
+					</p>
+				</div>
 			</div>
 		</div>
 	</div>
-</div>
+	<div id="overview_container">
+		<div id="overview_title_container"></div>
+		<div id="overview_content_container">
+			<svg id="overview_map_chart"></svg>
+			<svg id="overview_point_chart"></svg>
+		</div>
+	</div>
 </body>
 <script type="text/javascript">
 	var law_type = [
@@ -559,6 +587,18 @@ body{
 	];
 	var selected_law_idx;
 	var selected_gun_idx;
+
+	// D3 Projection
+	var overview_projection;
+	var overview_path;
+	var projection;
+	var path;
+
+	// color scale for overview score
+	var score_scale_color;
+	
+	// size scale for gva casuality
+	var casuality_scale_size;
 	
 	// overview map variables
 	var overview_map_svg;
@@ -566,7 +606,24 @@ body{
 	var overview_map_legend_g;
 	var overview_width = 960;
 	var overview_height = 600;
-	var score_scale_color;
+	
+	var overview_chart_svg;
+	var overview_chart_1_g;
+	var overview_chart_1_circle_g;
+	var overview_chart_1_legend_g;
+	var overview_chart_1_scale_x;
+	var overview_chart_1_axis_x;
+	var overview_chart_1_scale_y;
+	var overview_chart_1_axis_y;
+	
+	var overview_chart_2_g;
+	var overview_chart_2_circle_g
+	var overview_chart_2_legend_g;
+	var overview_chart_2_axis_x;
+	var overview_chart_2_axis_y;
+	
+	var overview_chart_width = 960;
+	var overview_chart_height = 600;
 	
 	// year selector for overview
 	var year_start = 1;
@@ -574,10 +631,13 @@ body{
 	var selected_year = 6
 	var selected_overview_idx;
 	
+	var tooltip;
+	
 	// chart variables
 	var law_map_svg;
 	var law_map_g;
 	var law_legend_g;
+	var law_map_gva_g;
 	var width = 960;
 	var height = 600;
 	
@@ -591,6 +651,7 @@ body{
 				law				
 	*/
 	var law_state = {};
+	var gva_state = {};
 	
 	// calculate score for overview
 	// id = overview_stateName
@@ -835,6 +896,7 @@ body{
 		return safety_score;
 	}
 	
+	var ranking_char = ["A", "B", "C", "D", "E", "F"];
 	function score_ranking(score){
 		if(score >= 96 && score <= 120){
 			return 0;
@@ -896,6 +958,168 @@ body{
 			.style("fill", function(d){ return score_scale_color(legend_scale(d));});
 	}
 	
+	function draw_overview_chart_1(){
+		overview_chart_1_circle_g.html("");
+		
+		var year_start = new Date(2013+parseInt(selected_year), 0, 1);
+		var year_end = new Date(2014+parseInt(selected_year), 0, 1);
+
+		for(var state in law_state){
+			var insident = gva_state[state];
+			var score = $("[id='overview_"+state+"']").data("safety_score");
+			var casuality = 0;
+			
+			for(var idx in insident){
+				var data_time = new Date(insident[idx]["date"]);
+				
+				if(year_start.getTime() <= data_time.getTime() && data_time.getTime() < year_end.getTime()){
+					casuality += parseInt(insident[idx]["killed"]) + parseInt(insident[idx]["injured"]);
+				}
+			}
+			
+			if(score != undefined){
+				overview_chart_1_circle_g.append("circle")
+					.attr("id", state + "_casulity_dot_1")
+					.classed("casulity_dot", true)
+					.attr("transform", "translate(50, 20)")
+					.attr("cx", function() {
+						return overview_chart_1_scale_x(score);
+					})
+					.attr("cy", function() {
+						return overview_chart_1_scale_y(casuality);
+					})
+					.attr("r", 5)
+					.style("fill", function(){
+						return score_scale_color(score)
+					})
+					.on("mouseover", function(d){
+						var id = this.id;
+						var state = id.replace("_casulity_dot_1", "");
+						var sc = $("[id='"+id+"']").data("score");
+						var casual = $("[id='"+id+"']").data("casuality");
+
+						d3.select("[id='"+id+"']").transition()
+							.duration(100)
+							.attr("r", 7.5);
+							
+						tooltip.transition()
+							.duration(50)
+							.style("opacity", 0.9);
+
+						tooltip.style("left", (d3.event.pageX + 15) + "px")
+							.style("top", (d3.event.pageY) + "px")
+							.html(
+								"<span>"+
+									"State:&nbsp;"+state+
+								"</span>"+
+								"<span>"+
+									"Gun Law Ranking:&nbsp;"+ranking_char[score_ranking(sc)]+
+								"</span>"+
+								"<span>"+
+									"Casuality:&nbsp;"+casual+
+								"</span>"
+							);
+
+					})
+					.on("mouseout", function(d){
+						var id = this.id;
+						
+						d3.select("[id='"+id+"']").transition()
+							.duration(100)
+							.attr("r", 5);
+							
+						tooltip.transition()
+							.duration(500)      
+							.style("opacity", 0);
+					});
+					
+				$("[id='"+state + "_casulity_dot_1']").data("score", score);
+				$("[id='"+state + "_casulity_dot_1']").data("casuality", casuality);
+			}
+		}
+	}
+	
+	function draw_overview_chart_2(){
+		overview_chart_2_circle_g.html("");
+		
+		var year_start = new Date(2013+parseInt(selected_year), 0, 1);
+		var year_end = new Date(2014+parseInt(selected_year), 0, 1);
+
+		for(var state in law_state){
+			var insident = gva_state[state];
+			var score = $("[id='overview_"+state+"']").data("safety_score");
+			var count = 0;
+			
+			for(var idx in insident){
+				var data_time = new Date(insident[idx]["date"]);
+				
+				if(year_start.getTime() <= data_time.getTime() && data_time.getTime() < year_end.getTime()){
+					count++;
+				}
+			}
+			
+			if(score != undefined){
+				overview_chart_2_circle_g.append("circle")
+					.attr("id", state + "_casulity_dot_2")
+					.classed("casulity_dot", true)
+					.attr("transform", "translate(50, 20)")
+					.attr("cx", function() {
+						return overview_chart_2_scale_x(score);
+					})
+					.attr("cy", function() {
+						return overview_chart_2_scale_y(count);
+					})
+					.attr("r", 5)
+					.style("fill", function(){
+						return score_scale_color(score)
+					})
+					.on("mouseover", function(d){
+						var id = this.id;
+						var state = id.replace("_casulity_dot_2", "");
+						var sc = $("[id='"+id+"']").data("score");
+						var insident_number = $("[id='"+id+"']").data("insident_number");
+						
+						d3.select("[id='"+id+"']").transition()
+							.duration(100)
+							.attr("r", 7.5);
+							
+						tooltip.transition()
+							.duration(50)
+							.style("opacity", 0.9);
+						
+						tooltip.style("left", (d3.event.pageX + 15) + "px")
+							.style("top", (d3.event.pageY) + "px")
+							.html(
+								"<span>"+
+									"State:&nbsp;"+state+
+								"</span>"+
+								"<span>"+
+									"Gun Law Ranking:&nbsp;"+ranking_char[score_ranking(sc)]+
+								"</span>"+
+								"<span>"+
+									"Number of Mass Shooting:&nbsp;"+insident_number+
+								"</span>"
+							);
+
+					})
+					.on("mouseout", function(d){
+						var id = this.id;
+						
+						d3.select("[id='"+id+"']").transition()
+							.duration(100)
+							.attr("r", 5);
+							
+						tooltip.transition()
+							.duration(500)      
+							.style("opacity", 0);
+					});
+					
+				$("[id='"+state + "_casulity_dot_2']").data("score", score);
+				$("[id='"+state + "_casulity_dot_2']").data("insident_number", count);
+			}
+		}
+	}
+
 	function update_map(id){
 		var state = id;
 		var state_laws = law_state[state];
@@ -1225,10 +1449,86 @@ body{
 		}
 	}
 	
+	function draw_gva_dot(){
+		law_map_gva_g.html("");
+		
+		var term_start = new Date(2014, selected_month-1, 1);
+		var term_end = new Date(2014, selected_month, 1);
+		
+		for(var state in gva_state){
+			var gva_data = gva_state[state];
+
+			for(var idx in gva_data){
+				var data_time = new Date(gva_data[idx]["date"]);
+
+				if(term_start.getTime() <= data_time.getTime() && data_time.getTime() < term_end.getTime()){
+					law_map_gva_g.append("circle")
+						.attr("id", state + "_gva_" + idx)
+						.classed("gva_circle", true)
+						.attr("cx", function(d) {
+							return projection([gva_data[idx]["longitude"], gva_data[idx]["latitude"]])[0];
+						})
+						.attr("cy", function() {
+							return projection([gva_data[idx]["longitude"], gva_data[idx]["latitude"]])[1];
+						})
+						.attr("r", function(){
+							return casuality_scale_size(gva_data[idx]["casuality"]);
+						})
+						.style("opacity", 0.85)
+						.style("fill", "#FF0000")
+						.on("mouseover", function(d){
+							var id = this.id;
+							var data = $("[id='"+id+"']").data("insident");
+							
+							tooltip.transition()
+								.duration(50)      
+								.style("opacity", 0.9);
+
+							tooltip.style("left", (d3.event.pageX + 15) + "px")
+								.style("top", (d3.event.pageY) + "px")
+								.html(
+									"<span>"+
+										"Date:&nbsp;"+data["date"]+
+									"</span>"+
+									"<span>"+
+										"State:&nbsp;"+data["state"]+
+									"</span>"+
+									"<span>"+
+										"City:&nbsp;"+data["city"]+
+									"</span>"+
+									"<span>"+
+										"Address:&nbsp;"+data["address"]+
+									"</span>"+
+									"<span>"+
+										"Killed:&nbsp;"+data["killed"]+
+									"</span>"+
+									"<span>"+
+										"Injured:&nbsp;"+data["injured"]+
+									"</span>"
+								);
+
+						})
+						.on("mouseout", function(d){       
+							tooltip.transition()        
+								.duration(500)      
+								.style("opacity", 0);
+						});
+
+					$("[id='"+state + "_gva_" + idx+"']").data("insident", gva_data[idx]);
+				}
+			}
+		}
+	}
+	
 	$(document).ready(function() {
 		selected_year = 6;
 		selected_overview_idx = 0;
 		
+		tooltip = d3.select("body")
+			.append("div")   
+			.attr("class", "tooltip")
+			.style("opacity", 0);
+			
 		overview_map_svg = d3.select("#overview_map_chart")
 			.attr("preserveAspectRatio", "xMinYMin meet")
 			.attr("viewBox", "0 0 800 720");
@@ -1238,6 +1538,147 @@ body{
 			
 		overview_map_legend_g = overview_map_svg.append("g");
 		
+		overview_chart_svg = d3.select("#overview_point_chart")
+			.attr("preserveAspectRatio", "xMinYMin meet")
+			.attr("viewBox", "0 0 800 720");
+			
+		overview_chart_1_g = overview_chart_svg.append("g")
+			.attr("transform", "translate(5, 0)");
+			
+		overview_chart_1_circle_g = overview_chart_1_g.append("g")
+			.attr("id", "chart_1_dots");
+			
+		overview_chart_1_legend_g = overview_chart_1_g.append("g");
+		
+		overview_chart_1_g.append("text")
+			.attr("class", "chart_title")
+			.attr("text-anchor", "middle")
+			.attr("x", 250)
+			.attr("y", 15)
+			.style("font-size", "14px")
+			.style("font-weight", "bold")
+			.text("Gun Law vs. Casuality");
+
+		overview_chart_1_scale_x = d3.scaleLinear()
+			.domain([-50, 150])
+			.range([0, 400]);
+		
+		var x_axis_tick = [-50, 150];
+		var x_axis_word = ["Loose", "Restrictive"];
+			
+		overview_chart_1_axis_x = overview_chart_1_g.append("g")
+			.attr("class", "x-axis")
+			.attr("transform", "translate(50, 260)")
+			.style("font-size", "10px")
+			.call(d3.axisBottom(overview_chart_1_scale_x)
+				.tickValues(x_axis_tick)
+				.tickFormat(function(d,i){ 
+					return x_axis_word[i]
+				})
+			);
+			
+		overview_chart_1_g.append("text")
+			.attr("class", "x label")
+			.attr("text-anchor", "middle")
+			.attr("x", 250)
+			.attr("y", 280)
+			.style("font-size", "14px")
+			.text("Law Strictness");
+			
+		overview_chart_1_scale_y = d3.scaleLinear()
+			.domain([0, 10, 50, 100, 200, 400, 600])
+			.range([240, 200, 160, 120, 80, 40, 0]);
+			
+		var y_axis_tick_1 = [0, 10, 50, 100, 200, 400, 600];
+		var y_axis_word_1 = [0, 10, 50, 100, 200, 400, 600];
+		
+		overview_chart_1_axis_y = overview_chart_1_g.append("g")
+			.attr("class", "y-axis")
+			.attr("transform", "translate(50, 20)")
+			.style("font-size", "10px")
+			.call(d3.axisLeft(overview_chart_1_scale_y)
+				.tickValues(y_axis_tick_1)
+				.tickFormat(function(d,i){ 
+					return y_axis_word_1[i]
+				})
+			);
+			
+		overview_chart_1_g.append("text")
+			.attr("class", "y label")
+			.attr("text-anchor", "middle")
+			.attr("transform", "rotate(-90)")
+			.attr("x", -125)
+			.attr("y", 15)
+			.style("font-size", "14px")
+			.text("Casuality");
+		
+		overview_chart_2_g = overview_chart_svg.append("g")
+			.attr("transform", "translate(5, 300)");
+		
+		overview_chart_2_circle_g = overview_chart_2_g.append("g")
+			.attr("id", "chart_2_dots");
+		
+		overview_chart_2_legend_g = overview_chart_svg.append("g");
+		
+		overview_chart_2_g.append("text")
+			.attr("class", "chart_title")
+			.attr("text-anchor", "middle")
+			.attr("x", 250)
+			.attr("y", 15)
+			.style("font-size", "14px")
+			.style("font-weight", "bold")
+			.text("Gun Law vs. Number of Mass Shooting");
+			
+		overview_chart_2_scale_x = d3.scaleLinear()
+			.domain([-50, 150])
+			.range([0, 400]);
+		
+		overview_chart_2_axis_x = overview_chart_2_g.append("g")
+			.attr("class", "x-axis")
+			.attr("transform", "translate(50, 260)")
+			.style("font-size", "10px")
+			.call(d3.axisBottom(overview_chart_2_scale_x)
+				.tickValues(x_axis_tick)
+				.tickFormat(function(d,i){ 
+					return x_axis_word[i]
+				})
+			);
+			
+		overview_chart_2_g.append("text")
+			.attr("class", "x label")
+			.attr("text-anchor", "middle")
+			.attr("x", 250)
+			.attr("y", 280)
+			.style("font-size", "14px")
+			.text("Law Strictness");
+			
+		var y_axis_tick_2 = [0, 10, 20, 30, 40, 50];
+		var y_axis_word_2 = [0, 10, 20, 30, 40, 50];
+
+		overview_chart_2_scale_y = d3.scaleLinear()
+			.domain([0, 10, 20, 30, 40, 50])
+			.range([240, 192, 144, 96, 48, 0]);
+			
+		overview_chart_2_axis_y = overview_chart_2_g.append("g")
+			.attr("class", "y-axis")
+			.attr("transform", "translate(50, 20)")
+			.style("font-size", "10px")
+			.call(d3.axisLeft(overview_chart_2_scale_y)
+				.tickValues(y_axis_tick_2)
+				.tickFormat(function(d,i){ 
+					return y_axis_word_2[i]
+				})
+			);
+		
+		overview_chart_2_g.append("text")
+			.attr("class", "y label")
+			.attr("text-anchor", "middle")
+			.attr("transform", "rotate(-90)")
+			.attr("x", -125)
+			.attr("y", 15)
+			.style("font-size", "14px")
+			.text("Casuality");
+			
 		selected_month = 72;
 		selected_law_idx = 0;
 		selected_gun_idx = 0;
@@ -1249,6 +1690,9 @@ body{
 		law_map_g = law_map_svg.append("g")
 			.attr("transform", "translate(-100, 50)");
 		law_legend_g = law_map_svg.append("g");
+		
+		law_map_gva_g = law_map_svg.append("g")
+			.attr("transform", "translate(-100, 50)");
 
 		d3.csv("./data/State Firearm Law.csv", function(law_data){
 			
@@ -1279,17 +1723,19 @@ body{
 			
 			console.log(law_state);
 			
+			/*
 			var law_type_of_law = d3.nest()
 				.key(function(d){ return d["Type of Law"];})
 				.entries(law_data);
 			
 			console.log(law_type_of_law)
-
-			var overview_projection = d3.geoAlbersUsa()
+			*/
+			
+			overview_projection = d3.geoAlbersUsa()
 				.translate([overview_width/2, overview_height/2])
 				.scale([1000]);   
 
-			var overview_path = d3.geoPath()
+			overview_path = d3.geoPath()
 			  .projection(overview_projection);
 			
 			// color for overview score
@@ -1299,12 +1745,16 @@ body{
 				.interpolate(d3.interpolateRgb);
 			
 			// D3 Projection
-			var projection = d3.geoAlbersUsa()
+			projection = d3.geoAlbersUsa()
 				.translate([width/2, height/2])
 				.scale([1000]);   
 
-			var path = d3.geoPath()
+			path = d3.geoPath()
 			  .projection(projection);
+			  
+			casuality_scale_size = d3.scaleLinear()
+				.domain([5, 10, 500])
+				.range([5, 7.5, 30]);
 
 			// drawing us map
 			d3.json("./data/us-states.json", function(json) {
@@ -1327,6 +1777,8 @@ body{
 					});
 			
 				show_overview_map_legend();
+				draw_overview_chart_1();
+				draw_overview_chart_2();
 				
 				
 				// draw law map
@@ -1391,9 +1843,37 @@ body{
 							
 						show_law_content_text();
 					});
+					
+				show_law_map_legend();
 			});
 
-			show_law_map_legend();
+
+			d3.json("./data/GVA_total.json", function(GVA_raw){
+				var temp_data = d3.nest()
+					.key(function(d){ return d["state"];})
+					.entries(GVA_raw);
+				
+				temp_data.forEach(function(d){
+					var key = d.key;
+					
+					for(var idx in d.values){
+						var casuality = parseInt(d.values[idx]["killed"]) + parseInt(d.values[idx]["injured"]);
+						
+						var temp = d.values[idx]
+						temp["casuality"] = casuality;
+						
+						if(key in gva_state){
+							gva_state[key].push(temp);
+						}
+						else{
+							gva_state[key] = [];
+							gva_state[key].push(temp);
+						}
+					}
+				});
+				
+				draw_gva_dot();
+			});
 		});
 		
 		$("#overview_title_container").html(
@@ -1471,9 +1951,10 @@ body{
 					
 					return score_scale_color(score);
 				});
-				
-				console.log($("[id='"+id+"']").data("safety_score"));
 			});
+			
+			draw_overview_chart_1();
+			draw_overview_chart_2();
 		});
 		
 		$("#month_slider").on("input", function(){
@@ -1493,6 +1974,7 @@ body{
 			});
 			
 			show_law_content_text();
+			draw_gva_dot();
 		});
 		
 		$("#law_type_selector").on("change", function(){
